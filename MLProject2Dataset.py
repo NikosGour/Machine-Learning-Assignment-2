@@ -19,6 +19,7 @@ class MLProject2Dataset(Dataset):
         # If on windows, replace backslash with forward slash
         # on linux, this does nothing
         files = [file.replace(os.sep, '/') for file in files]
+        files = files[:1000]
 
         # Add all files to dataframe
         for file in files:
@@ -59,7 +60,12 @@ class MLProject2Dataset(Dataset):
         # Get label
         label = self.df.iloc[idx]['dx']
 
+        if self.transform:
+            image = self.transform(image)
+
         return image, label
+
+
 
 x = MLProject2Dataset('data')
 print()

@@ -52,7 +52,7 @@ def train_net(model: nn.Module, trainloader: DataLoader, valloader: DataLoader =
                             y_val = y_val.to(device)
 
                             y_pred_val = model(X_val)
-                            loss_val += loss(y_pred_val, y_val.long())
+                            loss_val += loss(y_pred_val, y_val.long()).item()
                             correct_val += (y_pred_val.argmax(1) == y_val).type(torch.float).sum().item()
 
                     val_loss.append(loss_val/len(valloader.dataset))
@@ -109,7 +109,6 @@ if SimpleModel:
     train_net(model, trainloader,valloader,epochs=20, optimizer=optimizer, loss=loss, device=device)
     test_net(model, testloader, loss=loss, device=device)
     writer.close()
-    val_loss = [x.cpu() for x in val_loss]
 
     fig, ax = plt.subplots()
     ax.plot(train_loss, label='Training Loss')
@@ -121,9 +120,6 @@ if SimpleModel:
     # show the figure
     fig.show()
     fig.savefig('loss.png')
-
-    # train_accuracy = [x.item() for x in train_accuracy]
-    # val_accuracy = [x.cpu() for x in val_accuracy]
 
     fig, ax = plt.subplots()
     ax.plot(train_accuracy, label='Training Accuracy')
@@ -161,7 +157,7 @@ else:
     test_net(model, testloader, loss=loss, device=device)
 
     # train_loss = [x.item() for x in train_loss]
-    val_loss = [x.cpu() for x in val_loss]
+    # val_loss = [x.cpu() for x in val_loss]
 
     fig, ax = plt.subplots()
     ax.plot(train_loss, label='Training Loss')

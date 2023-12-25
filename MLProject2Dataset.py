@@ -19,7 +19,7 @@ class MLProject2Dataset(Dataset):
         # If on windows, replace backslash with forward slash
         # on linux, this does nothing
         files = [file.replace(os.sep, '/') for file in files]
-        files = files[:1000]
+        # files = files[:1000]
 
         # Add all files to dataframe
         for file in files:

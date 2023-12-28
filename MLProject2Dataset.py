@@ -4,6 +4,7 @@ import os
 import torch
 import pandas as pd
 import torchvision
+import PIL.Image
 from torch.utils.data import Dataset
 
 
@@ -49,13 +50,14 @@ class MLProject2Dataset(Dataset):
         image_path = self.df.iloc[idx]['path']
 
         # Load image
-        image = torchvision.io.read_image(image_path)
+        image = PIL.Image.open(image_path)
 
         # Change pixel values to float
-        image = image.to(torch.float32)
+        image = image.convert('RGB')
 
         # Normalize image
-        image = image / 255.0
+        image = torchvision.transforms.ToTensor()(image)
+
 
         # Get label
         label = self.df.iloc[idx]['dx']
@@ -65,7 +67,3 @@ class MLProject2Dataset(Dataset):
 
         return image, label
 
-
-
-x = MLProject2Dataset('data')
-print()

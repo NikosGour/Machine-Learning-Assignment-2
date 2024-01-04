@@ -1,26 +1,25 @@
 import glob
 import os
-
-import torch
+import PIL.Image
 import pandas as pd
 import torchvision
-import PIL.Image
 from torch.utils.data import Dataset
 
 
 class MLProject2Dataset(Dataset):
-    def __init__(self, data_dir, metadata_fname='metadata.csv', transform: torchvision.transforms = None):
+    def __init__(self, data_dir:str, metadata_fname='metadata.csv', transform: torchvision.transforms = None):
         self.data_dir = data_dir
         self.transform = transform
 
         self.df = pd.DataFrame(columns=['image_id', 'path'])
 
         # Get all files in data_dir
-        files = glob.glob(data_dir + '/part_1/*.jpg')
+        files = glob.glob(data_dir + '/*/*.jpg')
         # If on windows, replace backslash with forward slash
         # on linux, this does nothing
         files = [file.replace(os.sep, '/') for file in files]
-        # files = files[:1000]
+        # The line commented bellow was used for testing on a smaller dataset
+        # files = files[:3000]
 
         # Add all files to dataframe
         for file in files:

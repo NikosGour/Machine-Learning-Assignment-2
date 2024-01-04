@@ -9,6 +9,7 @@ from SimpleConvNN import SimpleConvNN
 import torch
 from torchsummary import summary
 import matplotlib.pyplot as plt
+import numpy as np
 
 val_loss = []
 train_loss = []
@@ -29,6 +30,9 @@ def train_net(model: nn.Module, trainloader: DataLoader, valloader: DataLoader =
             optimizer.zero_grad()
 
             y_pred = model(X)
+            # If I don't cast y to long, I get an error
+            # RuntimeError: "nll_loss_forward_reduce_cuda_kernel_2d_index" not implemented for 'Char'
+            # solution: https://stackoverflow.com/a/71126544/13250408
             current_loss = loss(y_pred, y.long())
 
             current_loss.backward()
@@ -40,10 +44,14 @@ def train_net(model: nn.Module, trainloader: DataLoader, valloader: DataLoader =
             running_loss += current_loss.item()
             if batch % print_period == print_period - 1:
                 avg_loss = running_loss / print_period
+                avg_accuracy = correct / total * 100
                 train_loss.append(avg_loss)
-                train_accuracy.append(correct / total * 100)
+                train_accuracy.append(avg_accuracy)
+
+                total_val = 0
                 correct_val = 0
-                loss_val = 0.0
+                running_loss_val = 0.0
+
                 if valloader is not None:
                     model.eval()
                     with torch.no_grad():
@@ -52,16 +60,20 @@ def train_net(model: nn.Module, trainloader: DataLoader, valloader: DataLoader =
                             y_val = y_val.to(device)
 
                             y_pred_val = model(X_val)
-                            loss_val += loss(y_pred_val, y_val.long()).item()
+                            running_loss_val += loss(y_pred_val, y_val.long()).item()
+                            total_val += y_val.size(0)
                             correct_val += (y_pred_val.argmax(1) == y_val).type(torch.float).sum().item()
 
-                    val_loss.append(loss_val/len(valloader))
-                    val_accuracy.append(correct_val / len(valloader.dataset) * 100)
+                    avg_loss_val = running_loss_val / len(valloader)
+                    avg_accuracy_val = correct_val / total_val * 100
+                    val_loss.append(avg_loss_val)
+                    val_accuracy.append(avg_accuracy_val)
                     # writer.add_scalar('Loss/train', avg_loss, (epoch+1) * len(trainloader) + batch)
+
                     print(
-                        f'[{epoch + 1}, {batch + 1}] loss: {avg_loss} | accuracy: {correct / total * 100:.2f}% | val_loss: {loss_val/len(valloader)} | val_accuracy: {correct_val / len(valloader.dataset) * 100:.2f}%')
+                        f'[{epoch + 1}, {batch + 1}] loss: {avg_loss} | accuracy: {avg_accuracy:.2f}% | val_loss: {avg_loss_val} | val_accuracy: {avg_accuracy_val:.2f}%')
                 else:
-                    print(f'[{epoch + 1}, {batch + 1}] loss: {avg_loss} | accuracy: {correct / total * 100 :.4f}%')
+                    print(f'[{epoch + 1}, {batch + 1}] loss: {avg_loss} | accuracy: {avg_accuracy :.4f}%')
                 running_loss = 0.0
                 total = 0
                 correct = 0
@@ -111,8 +123,8 @@ if SimpleModel:
     writer.close()
 
     fig, ax = plt.subplots()
-    ax.plot(train_loss, label='Training Loss')
-    ax.plot(val_loss, label='Validation Loss')
+    ax.plot(map(lambda x:x*10,range(len(train_loss))),train_loss, label='Training Loss')
+    ax.plot(map(lambda x:x*10,range(len(train_loss))),val_loss, label='Validation Loss')
     ax.set_xlabel('Epoch')
     ax.set_ylabel('Loss')
     ax.set_title('Training and Validation Loss')
@@ -140,7 +152,7 @@ else:
         torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     dataset = MLProject2Dataset(data_dir='data', metadata_fname='metadata.csv', transform=transforms)
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset, [.6, .1, .3],
-                                                                             generator=torch.Generator().manual_seed(69))
+                                                                             generator=torch.Generator().manual_seed(42))
 
     BATCH_SIZE = 32
     trainloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -159,23 +171,29 @@ else:
     # train_loss = [x.item() for x in train_loss]
     # val_loss = [x.cpu() for x in val_loss]
 
-    fig, ax = plt.subplots()
-    ax.plot(range(len(train_loss)) ,train_loss, label='Training Loss')
-    ax.plot(range(len(val_loss)) , val_loss,label='Validation Loss')
-    ax.set_xlabel('Batch Number')
-    ax.set_ylabel('Loss')
-    ax.set_title('Training and Validation Loss')
-    ax.legend()
+    x_axis = list(map(lambda x: x * 10, range(len(train_loss))))
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_axis, train_loss, label='Training Loss')
+    plt.plot(x_axis, val_loss, label='Validation Loss')
+    xticks = np.arange(x_axis[0], x_axis[-1] + 1, 100.0)
+    plt.xticks([*xticks, x_axis[-1]])
+    plt.xlabel('Batch Number')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+    plt.grid()
+    plt.show()
     # show the figure
-    fig.show()
-    fig.savefig('loss.png')
+
+    plt.savefig('loss.png')
 
     # train_accuracy = [x.item() for x in train_accuracy]
     # val_accuracy = [x.cpu() for x in val_accuracy]
 
     fig, ax = plt.subplots()
-    ax.plot(range(len(train_accuracy)) ,train_accuracy, label='Training Accuracy')
-    ax.plot(range(len(val_accuracy)) ,val_accuracy, label='Validation Accuracy')
+    x_axis = list(map(lambda x:x*10,range(len(train_accuracy))))
+    ax.plot(x_axis ,train_accuracy, label='Training Accuracy')
+    ax.plot(x_axis ,val_accuracy, label='Validation Accuracy')
     ax.set_xlabel('Batch Number')
     ax.set_ylabel('Accuracy')
     ax.set_title('Training and Validation Accuracy')
@@ -205,9 +223,9 @@ if ResNet:
 
     dataset = MLProject2Dataset(data_dir='data', metadata_fname='metadata.csv')
     train_dataset, val_test_dataset = torch.utils.data.random_split(dataset, [.6, .4],
-                                                                             generator=torch.Generator().manual_seed(69))
+                                                                             generator=torch.Generator().manual_seed(42))
     train_dataset.dataset.transform = data_transforms['train']
-    val_dataset, test_dataset = torch.utils.data.random_split(val_test_dataset, [.25, .75],generator=torch.Generator().manual_seed(69))
+    val_dataset, test_dataset = torch.utils.data.random_split(val_test_dataset, [.25, .75],generator=torch.Generator().manual_seed(42))
 
     val_dataset.dataset.transform = data_transforms['val']
     test_dataset.dataset.transform = data_transforms['val']
@@ -227,6 +245,7 @@ if ResNet:
     test_net(model, testloader, loss=loss, device=device)
 
     fig, ax = plt.subplots()
+
     ax.plot(train_loss, label='Training Loss')
     ax.plot(val_loss, label='Validation Loss')
     ax.set_xlabel('Epoch')
@@ -235,7 +254,7 @@ if ResNet:
     ax.legend()
     # show the figure
     fig.show()
-    fig.savefig('loss.png')
+    fig.savefig('resnet_loss.png')
 
     fig, ax = plt.subplots()
     ax.plot(train_accuracy, label='Training Accuracy')
@@ -246,4 +265,4 @@ if ResNet:
     ax.legend()
     # show the figure
     fig.show()
-    fig.savefig('accuracy.png')
+    fig.savefig('resnet_accuracy.png')
